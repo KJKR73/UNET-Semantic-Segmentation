@@ -111,18 +111,14 @@ class UNET(nn.Module):
     
     
     
-if __name__ == "__main__":
-    # Make the sample data
-    sample_data = torch.randn((32, 3, 128, 128)).to("cuda")
+# if __name__ == "__main__":
+#     # Make the sample data
+#     sample_data = torch.randn((32, 3, 128, 128)).to("cuda")
     
-    # Make the model
-    model = UNET(in_channels=sample_data.shape[1], out_channels=sample_data.shape[1])
-    model.to("cuda")
-    print(f"Total parameters : {sum(p.numel() for p in model.parameters())}")
-    start = time.time()
-    print(model(sample_data).shape)
-    print(f"Total time : {time.time() - start}")
-    
-    
-    
-    
+#     # Make the model
+#     model = UNET(in_channels=sample_data.shape[1], out_channels=sample_data.shape[1])
+#     model.to("cuda")
+#     print(f"Total parameters : {sum(p.numel() for p in model.parameters())}")
+#     start = time.time()
+#     print(model(sample_data).shape)
+#     print(f"Total time : {time.time() - start}")
