@@ -1,17 +1,14 @@
 import cv2
 import torch
-import numpy as np
-import albumentations
 
-class PascalDataset(object):
-    """Creates the Pascal Dataset
+class SegmentationDataset(object):
+    """Creates the Segmentation Dataset
 
     Args:
         object (object): Generic Python Object
     """
-    def __init__(self, split_list, do_transforms, transforms, img_size):
+    def __init__(self, split_list, do_transforms, transforms):
         # Initialize the instance variables
-        self.img_size = img_size
         self.split_list = split_list
         self.transforms = transforms
         self.do_transforms = do_transforms
