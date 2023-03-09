@@ -7,18 +7,27 @@ class SegmentationDataset(object):
     Args:
         object (object): Generic Python Object
     """
-    def __init__(self, split_list, do_transforms, transforms):
+    def __init__(self, split_list, do_transforms,
+                 transforms, config, map_transform):
         # Initialize the instance variables
+        self.config = config
         self.split_list = split_list
         self.transforms = transforms
+        self.map_transform = map_transform
         self.do_transforms = do_transforms
         
     def __getitem__(self, index):
         # Get the image and the mask
         file_name = self.split_list[index].split(".")[0]
-        image = cv2.imread(f"{file_name}.jpg")
+        image = cv2.imread(f"{self.config.PATH_TO_IMAGES}{file_name}.jpg")
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(f"{file_name}.png", cv2.IMREAD_GRAYSCALE)
+        mask = cv2.imread(f"{self.config.PATH_TO_MASKS}{file_name}.png",
+                          cv2.IMREAD_GRAYSCALE)
+        
+        # Transform the map
+        if self.map_transform != None:
+            for key, value in self.map_transform.items():
+                mask[mask==value] = key
         
         # Augment the mask and the images
         if self.do_transforms:
@@ -26,8 +35,7 @@ class SegmentationDataset(object):
             image = augmented_data["image"]
             mask = augmented_data["mask"]
         
-        return (torch.tensor(image),
-                torch.tensor(mask))
+        return image.float(), mask.long()
         
     def __len__(self):
         # Return the length of the data
