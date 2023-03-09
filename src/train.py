@@ -32,9 +32,9 @@ def train_one_epoch(model, config, epoch, loader, loss_fxn, optimizer, scaler):
         optimizer.zero_grad()
         
         # Pass the data through the model
-        with torch.cuda.amp.autocast():
+        with torch.cuda.amp.autocast(enabled=True):
             output = model(images)
-            loss = loss_fxn(images, masks)
+            loss = loss_fxn(output, masks)
             
         # update the average meter
         meter.update(loss.item(), images.shape[0])
@@ -45,11 +45,13 @@ def train_one_epoch(model, config, epoch, loader, loss_fxn, optimizer, scaler):
         scaler.update()
         
         # Update the bar
-        bar.set_description(f"Epoch/Batch : {epoch} : {batch_no} | Loss : {round(loss.item(), ndigits=4)}")
+        bar.set_description(f"Epoch/Batch : {epoch} : {batch_no} | Loss : {round(meter.avg, ndigits=4)}")
         
         # Add the metrics (only accuracy for now)
-        metrics["pixel_accuracy"].append(pixel_accuracy(truth=masks, preds=output))
-    
+        metrics["pixel_accuracy"].append(pixel_accuracy(truth=masks.detach().cpu(),
+                                                        preds=torch.argmax(output.cpu(), dim=1)))
+
+
     # Return the average metrics
     return meter.avg, metrics
     
