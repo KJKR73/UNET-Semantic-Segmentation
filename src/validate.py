@@ -3,6 +3,7 @@ from tqdm import tqdm
 from src.metrics import *
 from src.utils import AverageMeter
 from collections import defaultdict
+from src.utils import save_prediction_mask
 
 @torch.no_grad()
 def validate_one_epoch(model, config, epoch, loader, loss_fxn):
@@ -33,16 +34,20 @@ def validate_one_epoch(model, config, epoch, loader, loss_fxn):
         
         # Get the outputs
         output = model(images)
-        loss = loss_fxn(images, masks)
+        loss = loss_fxn(output, masks)
             
         # update the average meter
         meter.update(loss.item(), images.shape[0])
             
         # Update the bar
-        bar.set_description(f"Epoch/Batch : {epoch} : {batch_no} | Loss : {round(loss.item(), ndigits=4)}")
+        bar.set_description(f"Epoch/Batch : {epoch} : {batch_no} | Loss : {round(meter.avg, ndigits=4)}")
 
         # Add the metrics (only accuracy for now)
-        metrics["pixel_accuracy"].append(pixel_accuracy(truth=masks, preds=output))
+        metrics["pixel_accuracy"].append(pixel_accuracy(truth=masks.detach().cpu(),
+                                                        preds=torch.argmax(output.cpu(), dim=1)))
+        
+        if batch_no % 10 == 0:
+            save_prediction_mask(truth_mask=masks[0], pred_mask=output[0])
     
     # Return the average metrics
     return meter.avg, metrics
