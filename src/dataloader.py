@@ -28,5 +28,5 @@ def get_loaders(train_list, validation_list, config, transforms):
                                                    num_workers=config.NUM_WORKERS,
                                                    shuffle=False)
     
-    return train_dataset, validation_dataset
+    return train_loader, validation_loader
     
