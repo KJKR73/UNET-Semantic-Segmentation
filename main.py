@@ -3,13 +3,14 @@ import json
 import glob
 import torch
 import random
-from tqdm import tqdm
+import numpy as np
 from src.dataloader import *
 from src.dataset import *
 from src.train import *
 from src.utils import *
 from src.validate import *
 from src.unet import *
+from src.res_unet import *
 
 class CONFIG:
     TRAIN_SIZE_PERCENT = 0.9
@@ -20,13 +21,24 @@ class CONFIG:
     IMG_SIZE = 256
     NUM_EPOCHS = 10
     BATCH_SIZE = 4
+    AMP = True
+    SEED = 10
+    MODEL_VARIANT = "res-unet"
     IN_CHANNELS = 3
-    NUM_WORKERS = 6
-    WEIGHT_DECAY = 1e-4
+    NUM_WORKERS = 2
+    WEIGHT_DECAY = 1e-8
     MAP_NEEDED = True
-    OUT_CHANNELS = 255 # Num classes in you dataset
-    LEARNING_RATE = 1e-4
+    OUT_CHANNELS = 151
+    LEARNING_RATE = 1e-3
     UNET_CHANNELS = [64, 128, 256, 512, 1024]
+    
+def seed_everything(seed):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
     
     
 def engine(config):
@@ -34,12 +46,19 @@ def engine(config):
 
     Args:
         config (object): Contains the config for the whole file
-    """    
+    """
+    # Seed everything
+    seed_everything(config.SEED)   
+     
     # Get the names of the files
     file_names = [str(i) for i in glob.glob(f"{config.PATH_TO_IMAGES}**/*", recursive=True)]
     file_names = [i.split("/")[-1].split(".")[0] for i in file_names]
     random.shuffle(file_names)
     print(f"Total Images to train : {len(file_names)}")
+    
+    # Collect the extensions
+    config.IMG_EXT = [str(i) for i in glob.glob(f"{config.PATH_TO_IMAGES}**/*", recursive=True)][0].split(".")[-1] 
+    config.MASK_EXT = [str(i) for i in glob.glob(f"{config.PATH_TO_MASKS}**/*", recursive=True)][0].split(".")[-1]
     
     train_files = file_names[ : int(config.TRAIN_SIZE_PERCENT * len(file_names))]
     validation_files = file_names[len(train_files):]
@@ -47,6 +66,7 @@ def engine(config):
     print(f"Validating on {len(validation_files)} image/mask pairs")
     
     # Calcuale the map
+    map_transform = None
     if config.MAP_NEEDED:
         # Try to find the map in the directory
         f_path = config.DATA_PATH + "map.json"
@@ -64,19 +84,16 @@ def engine(config):
     print(f"Total classes found : {config.OUT_CHANNELS}")
         
     # Define the model and its requirment
-    print("Loading model....")
-    unet_model = UNET(in_channels=config.IN_CHANNELS,
-                      out_channels=config.OUT_CHANNELS,
-                      channels=config.UNET_CHANNELS)
-    unet_model.to(config.DEVICE)
-    print("Model Loaded Successfully....")
+    model_dict = {
+        "unet": UNET,
+        "res-unet": RES_UNET,
+    }
     
-    # Define the loss function and other stuff
-    scaler = torch.cuda.amp.GradScaler()
-    loss_fxn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(params=unet_model.parameters(),
-                                 weight_decay=config.WEIGHT_DECAY,
-                                 lr=config.LEARNING_RATE)
+    unet_model = model_dict[config.MODEL_VARIANT](in_channels=config.IN_CHANNELS,
+                                                  out_channels=config.OUT_CHANNELS,
+                                                  channels=config.UNET_CHANNELS)
+    unet_model.to(config.DEVICE)
+    print(f"Loaded {config.MODEL_VARIANT} with {sum(p.numel() for p in unet_model.parameters())} parameters")
     
     # Get the dataloaders
     print("Fetching dataloaders....")
@@ -89,13 +106,23 @@ def engine(config):
                                                   config=config)
     print("Dataloaders fetched....")
     
+    # Define the loss function and other stuff
+    scaler = torch.cuda.amp.GradScaler()
+    loss_fxn = torch.nn.CrossEntropyLoss().to(config.DEVICE)
+    optimizer = torch.optim.AdamW(params=unet_model.parameters(),
+                                  lr=config.LEARNING_RATE)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, 
+                                                    max_lr=1e-3, 
+                                                    epochs=config.NUM_EPOCHS,
+                                                    steps_per_epoch=len(train_loader))
+    
     # Train the model
     for epoch_no in range(config.NUM_EPOCHS):
         # Train one epoch of the model
         t_loss, t_metrics = train_one_epoch(model=unet_model, config=config,
                                             epoch=epoch_no + 1, loader=train_loader,
                                             loss_fxn=loss_fxn, optimizer=optimizer,
-                                            scaler=scaler)
+                                            scaler=scaler, scheduler=scheduler)
         accuracy_t = t_metrics["pixel_accuracy"]
         
         # Validate one epoch of the model

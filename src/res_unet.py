@@ -1,4 +1,3 @@
-import time 
 import torch
 import torch.nn as nn
 
@@ -14,7 +13,7 @@ class DoubleConvolution(nn.Module):
         super(DoubleConvolution, self).__init__()
         
         # Define the double conv layer
-        self.double_conv_module = nn.Sequential(
+        self.residual = nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU(),
@@ -26,6 +25,12 @@ class DoubleConvolution(nn.Module):
             nn.Dropout(0.2),
         )
         
+        self.line = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=out_channels),
+            nn.ReLU(),
+        )
+        
     def forward(self, x):
         """Forward Function for the double convolution block
 
@@ -35,11 +40,12 @@ class DoubleConvolution(nn.Module):
         Returns:
             torch.tensor: Tensor output of double convolution block (BATCH_SIZE, OUT_CHANNELS, OUT_HEIGHT, OUT_WIDTH)
         """
-        return self.double_conv_module(x)
+        # Add the residual bock here
+        return self.residual(x) + self.line(x)
     
     
     
-class UNET(nn.Module):
+class RES_UNET(nn.Module):
     """Creates the UNET model
 
     Args:
@@ -47,7 +53,7 @@ class UNET(nn.Module):
     """
     def __init__(self, in_channels, out_channels, channels=[64, 128, 256, 512, 1024]):
         # Init the super class 
-        super(UNET, self).__init__()
+        super(RES_UNET, self).__init__()
         
         # Define and populate the up and the down layer
         self.up_layers = nn.ModuleList()

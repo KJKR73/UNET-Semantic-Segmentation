@@ -8,6 +8,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from albumentations.pytorch.transforms import ToTensorV2
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -32,6 +34,7 @@ def get_augments(config):
     train_augments = alb.Compose([
         alb.Resize(config.IMG_SIZE, config.IMG_SIZE),
         alb.HorizontalFlip(p=0.5),
+        alb.VerticalFlip(p=0.5),
         alb.Normalize(),
         ToTensorV2(),
     ])
@@ -57,16 +60,19 @@ def save_prediction_mask(truth_mask, pred_mask):
     
     # Convert the data
     truth_mask = truth_mask.detach().cpu().numpy()
-    pred_mask = torch.argmax(pred_mask.cpu(), dim=0).numpy()
+    pred_mask = pred_mask.detach().cpu().numpy()
     
     # Plot the data
     axes[0].imshow(truth_mask)
     axes[0].set_title("Groud truth mask")
     axes[1].imshow(pred_mask)
     axes[1].set_title("Predicted mask")
+    axes[0].grid(False)
+    axes[1].grid(False)
     
     # Save the figure
-    fig.savefig("output.png")
+    plt.savefig("output.png")
+    plt.close(fig)
     
     
 def get_new_pixel_map(files, config):
@@ -79,8 +85,9 @@ def get_new_pixel_map(files, config):
     data = []
     
     # Loop and collect
-    for f in tqdm(files[:2000]):
-        mask = cv2.imread(config.PATH_TO_MASKS + f  + ".png", cv2.IMREAD_GRAYSCALE)
+    for f in tqdm(files):
+        mask = cv2.imread(config.PATH_TO_MASKS + f  + "." + config.MASK_EXT,
+                          cv2.IMREAD_GRAYSCALE)
         data.extend(list(pd.Series(mask.reshape(-1).tolist()).value_counts().index))
     
     # Make the counter
