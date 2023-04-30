@@ -8,7 +8,7 @@ def pixel_accuracy(truth, preds):
         pred (torch.tensor): Predicted mask
     """
     # Find the accuracy
-    total_corrects = (truth == preds).sum().item()
+    total_corrects = (truth.reshape(-1) == preds.reshape(-1)).sum().item()
     total_pixels = torch.numel(truth)
     
     # Return the accruacy
