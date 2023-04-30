@@ -18,10 +18,12 @@ class DoubleConvolution(nn.Module):
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU(),
+            nn.Dropout(0.2),
             
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=out_channels),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Dropout(0.2),
         )
         
     def forward(self, x):
@@ -84,7 +86,7 @@ class UNET(nn.Module):
         for lyr in self.down_layers:
             x = lyr(x)
             if isinstance(lyr, DoubleConvolution):
-                skips.append(x.detach())
+                skips.append(x)
 
         # Add the center layer
         x = self.center_layer(x)
@@ -108,17 +110,3 @@ class UNET(nn.Module):
             x = lyr(x)
             
         return self.last_layer(x)
-    
-    
-    
-# if __name__ == "__main__":
-#     # Make the sample data
-#     sample_data = torch.randn((32, 3, 128, 128)).to("cuda")
-    
-#     # Make the model
-#     model = UNET(in_channels=sample_data.shape[1], out_channels=sample_data.shape[1])
-#     model.to("cuda")
-#     print(f"Total parameters : {sum(p.numel() for p in model.parameters())}")
-#     start = time.time()
-#     print(model(sample_data).shape)
-#     print(f"Total time : {time.time() - start}")
