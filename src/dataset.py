@@ -19,9 +19,9 @@ class SegmentationDataset(object):
     def __getitem__(self, index):
         # Get the image and the mask
         file_name = self.split_list[index].split(".")[0]
-        image = cv2.imread(f"{self.config.PATH_TO_IMAGES}{file_name}.jpg")
+        image = cv2.imread(f"{self.config.PATH_TO_IMAGES}{file_name}.{self.config.IMG_EXT}")
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(f"{self.config.PATH_TO_MASKS}{file_name}.png",
+        mask = cv2.imread(f"{self.config.PATH_TO_MASKS}{file_name}.{self.config.MASK_EXT}",
                           cv2.IMREAD_GRAYSCALE)
         
         # Transform the map
