@@ -43,11 +43,13 @@ def validate_one_epoch(model, config, epoch, loader, loss_fxn):
         bar.set_description(f"Epoch/Batch : {epoch} : {batch_no} | Loss : {round(meter.avg, ndigits=4)}")
 
         # Add the metrics (only accuracy for now)
-        metrics["pixel_accuracy"].append(pixel_accuracy(truth=masks.detach().cpu(),
-                                                        preds=torch.argmax(output.cpu(), dim=1)))
+        pred_temp = torch.argmax(output.detach().cpu(), dim=1)
+        mask_temp = masks.detach().cpu()
+        metrics["pixel_accuracy"].append(pixel_accuracy(truth=mask_temp,
+                                                        preds=pred_temp))
         
-        if batch_no % 10 == 0:
-            save_prediction_mask(truth_mask=masks[0], pred_mask=output[0])
+        if batch_no % 1 == 0:
+            save_prediction_mask(truth_mask=mask_temp[0], pred_mask=pred_temp[0])
     
     # Return the average metrics
     return meter.avg, metrics
